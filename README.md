@@ -1,5 +1,51 @@
-# KeyHunter
+# 🔍 KeyHunter - Password Scanner for Wordlists
 
 ![keyhunter-removebg-preview](https://github.com/user-attachments/assets/5dc4b0f6-dec5-4aef-9dba-9ac489f868ff)
 
-Python CLI tool to match passwords in massive wordlists.
+KeyHunter is a powerful command-line tool designed to efficiently and stylishly search for passwords in wordlist files. Perfect for security researchers, password auditors, and anyone interested in scanning large datasets for specific terms.
+
+## 🚀 Key Features:
+
+- 🔎 **Efficient Searching**: Scans large files in blocks, optimizing memory usage and maximizing speed.
+- 📈 **Progress Bar**: Visualize the real time scanning progress for a more engaging experience.
+- 🔴 **Term Highlighting**: Highlights search terms found in red, making them easy to spot in the output.
+- 💡 **Detailed Reports**: Displays the total number of occurrences found and details of each match.
+- 🔧 **Configurable Options**: Adjust block size and enable verbose mode to see detailed progress of each step.
+
+## 🛠 Requirements
+
+- **Python version**: `Python 3.x`
+- **Libraries**: `colorama`, `tqdm`, `Pillow`, `rich`
+
+## 📥 Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/your-username/keyhunt.git
+cd keyhunt
+```
+
+2. Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+Run the script:
+
+```bash
+python keyhunt.py <path-to-file> <search-term> [options]
+```
+
+## 📜 Usage Examples
+- Search for passwords in a file:
+
+```bash
+python keyhunt.py wordlist.txt password
+```
+
+- Enable verbose mode:
+
+```bash
+python keyhunt.py wordlist.txt password -v
+```
