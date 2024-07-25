@@ -22,8 +22,8 @@ KeyHunter is a powerful command-line tool designed to efficiently and stylishly 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/keyhunt.git
-cd keyhunt
+git clone https://github.com/your-username/keyhunter.git
+cd keyhunter
 ```
 
 2. Install the dependencies:
@@ -34,18 +34,18 @@ pip install -r requirements.txt
 Run the script:
 
 ```bash
-python keyhunt.py <path-to-file> <search-term> [options]
+python keyhunter.py <path-to-file> <search-term> [options]
 ```
 
 ## 📜 Usage Examples
 - Search for passwords in a file:
 
 ```bash
-python keyhunt.py wordlist.txt password
+python keyhunter.py wordlist.txt password
 ```
 
 - Enable verbose mode:
 
 ```bash
-python keyhunt.py wordlist.txt password -v
+python keyhunter.py wordlist.txt password -v
 ```
