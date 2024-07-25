@@ -1,14 +1,13 @@
-import sys
 import os
 import argparse
 from colorama import init, Fore, Style
 from datetime import datetime
 from tqdm import tqdm
+import mmap
 
 # Initialize colorama
 init(autoreset=True)
 
-# Prints the logo
 def print_logo():
     logo = """
  _  __          _   _             _            
@@ -17,7 +16,7 @@ def print_logo():
 | . |  __| |_| |  _  | |_| | | | | ||  __| |   /o \_____
 |_|\_\___|\__, |_| |_|\__,_|_| |_|\__\___|_|   \__/-="="
           |___/                                
-                                         @gitblanc, v1.0
+                                         @gitblanc, v1.1
     """
     print(Fore.MAGENTA + logo + Style.RESET_ALL)
 
@@ -27,43 +26,49 @@ def print_with_timestamp(message, color=Fore.RESET):
     print(formatted_message)
 
 def search_in_file(file_path, search_term, block_size=1024 * 1024, verbose=False):
-    # Get the size of the wordlist
-    total_size = os.path.getsize(file_path)
-    
-    if verbose:
-        print_with_timestamp(f"Wordlist size: {total_size} bytes", Fore.YELLOW)
-        print_with_timestamp("Let's dive in...")
+    search_term_bytes = search_term.encode()  # Convert search term to bytes
+    search_term_len = len(search_term_bytes)
 
-    occurrences = 0
-    with open(file_path, 'rb') as file, tqdm(total=total_size, unit='B', unit_scale=True, desc='Looking for biscuits') as pbar:
-        buffer = b""
-        
-        while True:
-            block = file.read(block_size)
-            if not block:
-                break
+    with open(file_path, 'rb') as f:
+        size = os.path.getsize(file_path)
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            occurrences = 0
+            pbar = tqdm(total=size, unit='B', unit_scale=True, desc='Looking for biscuits')
 
-            buffer += block
-            lines = buffer.split(b'\n')
-            buffer = lines.pop()
+            buffer = b""
+            offset = 0
 
-            for line in lines:
-                if search_term.encode() in line:
-                    occurrences += 1
-                    # Highlight in red the match 
-                    highlighted_line = line.decode(errors='ignore').replace(search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}")
-                    tqdm.write(highlighted_line)  # Avoid progress bar conflicts
+            while offset < size:
+                chunk_size = min(block_size, size - offset)
+                chunk = mm[offset:offset + chunk_size]
+                buffer += chunk
+                lines = buffer.split(b'\n')
 
-            # Update progress bar
-            pbar.update(len(block))
+                # The last part might not end with a newline, so handle it separately
+                buffer = lines.pop()
 
-        # Verify final buffer
-        if search_term.encode() in buffer:
-            occurrences += 1
-            highlighted_buffer = buffer.decode(errors='ignore').replace(search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}")
-            tqdm.write(highlighted_buffer)
+                for line in lines:
+                    if search_term_bytes in line:
+                        occurrences += 1
+                        # Decode and highlight the line with the search term
+                        line_decoded = line.decode(errors='ignore')
+                        highlighted_line = line_decoded.replace(search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}")
+                        tqdm.write(highlighted_line)  # Print highlighted line
 
-        print_with_timestamp(f"Passwords found: {occurrences}", Fore.GREEN)
+                # Update progress bar
+                pbar.update(chunk_size)
+                offset += chunk_size
+
+            # Handle the last buffer
+            if search_term_bytes in buffer:
+                occurrences += 1
+                # Decode and highlight the line with the search term
+                last_line = buffer.decode(errors='ignore')
+                highlighted_last_line = last_line.replace(search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}")
+                tqdm.write(highlighted_last_line)
+
+            pbar.close()
+            print_with_timestamp(f"Passwords found: {occurrences}", Fore.GREEN)
 
 # CLI commands configuration
 parser = argparse.ArgumentParser(description="Search for a password inside a [massive] wordlist.")
@@ -76,6 +81,5 @@ args = parser.parse_args()
 
 print_logo()
 
-# Verbose mode execution if specified
+# Execute the search function
 search_in_file(args.file_path, args.search_term, args.block_size, args.verbose)
-
