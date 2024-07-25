@@ -1,7 +1,9 @@
 # 🔍 KeyHunter - Password Scanner for Wordlists
 
-![keyhunter-removebg-preview](https://github.com/user-attachments/assets/5dc4b0f6-dec5-4aef-9dba-9ac489f868ff)
 ![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fgitblanc%2FKeyHunter%2F&label=Total%20visits&labelColor=%23697689&countColor=%23d9e3f0)
+
+![keyhunter-removebg-preview](https://github.com/user-attachments/assets/5dc4b0f6-dec5-4aef-9dba-9ac489f868ff)
+
 
 KeyHunter is a powerful command-line tool designed to efficiently and stylishly search for passwords in wordlist files. Perfect for security researchers, password auditors, and anyone interested in scanning large datasets for specific terms.
 
