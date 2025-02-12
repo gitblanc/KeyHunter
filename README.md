@@ -5,11 +5,12 @@
 ![keyhunter-removebg-preview](https://github.com/user-attachments/assets/5dc4b0f6-dec5-4aef-9dba-9ac489f868ff)
 
 
-KeyHunter is a powerful command-line tool designed to efficiently and stylishly search for passwords in wordlist files. Perfect for security researchers, password auditors, and anyone interested in scanning large datasets for specific terms.
+KeyHunter is a powerful command-line tool designed to efficiently and stylishly search for passwords in massive wordlist files. Perfect for security researchers, password auditors, and anyone interested in scanning large datasets for specific terms.
 
 ## 🚀 Key Features:
 
 - 🔎 **Efficient Searching**: Scans large files in blocks, optimizing memory usage and maximizing speed.
+- 🎳 **Parallel Searching**: Scans multiple files in blocks, optimizing memory 15x times more than the efficient searching.
 - 📈 **Progress Bar**: Visualize the real time scanning progress for a more engaging experience.
 - 🔴 **Term Highlighting**: Highlights search terms found in red, making them easy to spot in the output.
 - 💡 **Detailed Reports**: Displays the total number of occurrences found and details of each match.
@@ -41,7 +42,16 @@ python3 keyhunter.py <path-to-file> <search-term> [options]
 ```
 
 ## 📜 Usage Examples
-- Search for passwords in a file:
+- Search for passwords across multiple and different files (**_FASTER_**):
+
+```shell
+python3 keyhunter.py /path/to/wordlist_parts/ password [-v] [--output /path/to/scan.txt]
+```
+
+>[!Note]
+>For this option you should separate the wordlist in multiple files using the `--split` functionality (or by yourself) and then pass the folder as path.
+
+- Search for passwords in a file (**_SLOWER_**):
 
 ```bash
 python3 keyhunter.py /path/to/wordlist.txt password [-v] [--output /path/to/scan.txt]
