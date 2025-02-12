@@ -6,9 +6,13 @@ from colorama import init, Fore, Style
 from datetime import datetime
 from tqdm import tqdm
 import mmap
+import multiprocessing
 
 # Initialize colorama
 init(autoreset=True)
+
+# Global multiprocessing lock for safe writing
+lock = multiprocessing.Lock()
 
 def print_logo():
     logo = r"""
@@ -18,7 +22,7 @@ def print_logo():
 | . |  __| |_| |  _  | |_| | | | | ||  __| |   /o \_____
 |_|\_\___|\__, |_| |_|\__,_|_| |_|\__\___|_|   \__/-="="
           |___/                                
-                                         @gitblanc, v1.2
+                                         @gitblanc, v1.3
     """
     print(Fore.MAGENTA + logo + Style.RESET_ALL)
 
@@ -30,12 +34,12 @@ def print_with_timestamp(message, color=Fore.RESET):
 def search_in_file(file_path, search_term, output_file, block_size=1024 * 1024, verbose=False):
     search_term_bytes = search_term.encode()
     line_number = 0
-    
-    with open(file_path, 'rb') as f, open(output_file, 'w', encoding='utf-8') as out_f:
+    occurrences_count = 0  
+
+    with open(file_path, 'rb') as f:
         size = os.path.getsize(file_path)
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-            occurrences = 0
-            pbar = tqdm(total=size, unit='B', unit_scale=True, desc='Looking for biscuits')
+            pbar = tqdm(total=size, unit='B', unit_scale=True, desc=f'Searching in {os.path.basename(file_path)}', leave=False)
 
             buffer = b""
             offset = 0
@@ -45,44 +49,65 @@ def search_in_file(file_path, search_term, output_file, block_size=1024 * 1024, 
                 chunk = mm[offset:offset + chunk_size]
                 buffer += chunk
                 lines = buffer.split(b'\n')
-                buffer = lines.pop()
+                buffer = lines.pop()  
 
                 for line in lines:
                     line_number += 1
                     if search_term_bytes in line:
-                        occurrences += 1
+                        occurrences_count += 1
                         line_decoded = line.decode(errors='ignore')
                         highlighted_line = line_decoded.replace(
-                            search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
-                        )
+                                search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
+                            )
+                        occurrence_message = f"{highlighted_line}"
+                        occurrence_message_verbose = f"[{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}] {highlighted_line} [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}]"
+
+                        # Write immediately with a lock
+                        with lock:
+                            with open(output_file, 'a', encoding='utf-8') as out_f:
+                                if verbose:
+                                    out_f.write(f"{occurrence_message_verbose}\n")
+                                else:
+                                    out_f.write(f"{occurrence_message}\n")
+
                         if verbose:
-                            out_f.write(f"Line {line_number}: {line_decoded}\n")
-                            tqdm.write(f"[{Fore.YELLOW}Line: {line_number}{Style.RESET_ALL}] {highlighted_line}")
+                            tqdm.write(f"{occurrence_message_verbose}")
                         else:
-                            out_f.write(f"{line_decoded}\n")
-                            tqdm.write(highlighted_line)
+                            tqdm.write(f"{occurrence_message}")
 
                 pbar.update(chunk_size)
                 offset += chunk_size
 
-            if buffer:
+            if buffer and search_term_bytes in buffer:
                 line_number += 1
-                if search_term_bytes in buffer:
-                    occurrences += 1
-                    last_line = buffer.decode(errors='ignore')
-                    highlighted_last_line = last_line.replace(
+                occurrences_count += 1
+                last_line = buffer.decode(errors='ignore')
+                highlighted_last_line = last_line.replace(
                         search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
                     )
-                    if verbose:
-                        out_f.write(f"Line {line_number}: {last_line}\n")
-                        tqdm.write(f"[{Fore.YELLOW}Line: {line_number}{Style.RESET_ALL}] {highlighted_last_line}")
-                    else:
-                        out_f.write(f"{last_line}\n")
-                        tqdm.write(highlighted_last_line)
+                occurrence_message = f"{highlighted_last_line}"
+                occurrence_message_verbose = f"[{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}] {highlighted_last_line} [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}]"
+
+                with lock:
+                    with open(output_file, 'a', encoding='utf-8') as out_f:
+                        if verbose:
+                            out_f.write(f"{occurrence_message_verbose}\n")
+                        else:
+                            out_f.write(f"{occurrence_message}\n")
+
+                if verbose:
+                    tqdm.write(f"{occurrence_message_verbose}")
+                else:
+                    tqdm.write(f"{occurrence_message}")
 
             pbar.close()
-            print(f"{Fore.GREEN}Passwords found: {occurrences}{Style.RESET_ALL}")
-            print(f"{Fore.BLUE}Results saved at: {output_file}{Style.RESET_ALL}")
+
+            if verbose:
+                print(f"{Fore.GREEN}Matches found in {file_path}: {occurrences_count}{Style.RESET_ALL}")
+
+def process_file(args):
+    file_path, search_term, output_file, block_size, verbose = args
+    search_in_file(file_path, search_term, output_file, block_size, verbose)
     
 
 def split_wordlist(file_path, max_size_mb=100):
@@ -134,6 +159,8 @@ parser.add_argument("search_term", nargs="?", help="The password (or part of the
 parser.add_argument("-b", "--block_size", type=int, default=1024*1024, help="Reading block size in bytes (default 1 MB).")
 parser.add_argument("--output", type=str, help="Specify output file name. Default: keyhunter_results/result_<date>.txt")
 parser.add_argument("-v", "--verbose", action="store_true", help="Verbose.")
+parser.add_argument("--workers", type=int, default=max(1, os.cpu_count() - 4), help="Number of parallel workers (default: CPU count - 4).")
+
 parser.add_argument("-s", "--split", action="store_true", help="Split a wordlist in multiple small parts.")
 parser.add_argument("--max_size", type=int, default=100, help="Max size per split file in MB (default: 100MB).") # Max size Github allows
 
@@ -145,15 +172,20 @@ print_logo()
 output_dir = "keyhunter_results"
 os.makedirs(output_dir, exist_ok=True)
 # Default output
-default_output = args.output if args.output else os.path.join(output_dir, f"result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+output_file = args.output if args.output else os.path.join(output_dir, f"result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
 
 
 if args.split:
     split_wordlist(args.file_path, args.max_size)
     exit(0)  # Exit after splitting
-else:
-    # Direct search without splitting
-    if args.output:
-        search_in_file(args.file_path, args.search_term, args.output, args.block_size, args.verbose)
+else: # Direct search without splitting
+    # Determine if input is a single file or a directory
+    if os.path.isdir(args.file_path):
+        files = [os.path.join(args.file_path, f) for f in os.listdir(args.file_path) if os.path.isfile(os.path.join(args.file_path, f))]
     else:
-        search_in_file(args.file_path, args.search_term, default_output, args.block_size, args.verbose)
+        files = [args.file_path]
+    
+    # Process files in parallel
+    with multiprocessing.Pool(args.workers) as pool:
+        pool.map(process_file, [(file, args.search_term, output_file, args.block_size, args.verbose) for file in files])
+    print(f"{Fore.BLUE}Results saved at: {output_file}{Style.RESET_ALL}")
