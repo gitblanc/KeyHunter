@@ -18,7 +18,7 @@ KeyHunter is a powerful command-line tool designed to efficiently and stylishly 
 ## 🛠 Requirements
 
 - **Python version**: `Python 3.x`
-- **Libraries**: `colorama`, `tqdm`, `Pillow`, `rich`
+- **Libraries**: `colorama`, `tqdm`, `Pillow`, `mmap`
 
 ## 📥 Installation
 
@@ -37,18 +37,18 @@ pip install -r requirements.txt
 Run the script:
 
 ```bash
-python keyhunter.py <path-to-file> <search-term> [options]
+python3 keyhunter.py <path-to-file> <search-term> [options]
 ```
 
 ## 📜 Usage Examples
 - Search for passwords in a file:
 
 ```bash
-python keyhunter.py wordlist.txt password
+python3 keyhunter.py /path/to/wordlist.txt password [-v] [--output /path/to/scan.txt]
 ```
 
-- Enable verbose mode:
+- Split a file in multiple smaller ones (to split massive wordlists):
 
 ```bash
-python keyhunter.py wordlist.txt password -v
+python3 keyhunter.py --split [--max_size 50]
 ```
