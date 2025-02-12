@@ -1,7 +1,6 @@
 colorama
 tqdm
 Pillow
-rich
 os
 argparse
 mmap
