@@ -181,7 +181,11 @@ if args.split:
 else: # Direct search without splitting
     # Determine if input is a single file or a directory
     if os.path.isdir(args.file_path):
-        files = [os.path.join(args.file_path, f) for f in os.listdir(args.file_path) if os.path.isfile(os.path.join(args.file_path, f))]
+        files = []
+        for root, _, filenames in os.walk(args.file_path):
+            for filename in filenames:
+                file_path = os.path.join(root, filename)
+                files.append(file_path)
     else:
         files = [args.file_path]
     
