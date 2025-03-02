@@ -22,7 +22,7 @@ def print_logo():
 | . |  __| |_| |  _  | |_| | | | | ||  __| |   /o \_____
 |_|\_\___|\__, |_| |_|\__,_|_| |_|\__\___|_|   \__/-="="
           |___/                                
-                                         @gitblanc, v1.3
+                                         @gitblanc, v1.4
     """
     print(Fore.MAGENTA + logo + Style.RESET_ALL)
 
@@ -60,7 +60,7 @@ def search_in_file(file_path, search_term, output_file, block_size=1024 * 1024, 
                                 search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
                             )
                         occurrence_message = f"{highlighted_line}"
-                        occurrence_message_verbose = f"[{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}] {highlighted_line} [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}]"
+                        occurrence_message_verbose = f"{highlighted_line} \n [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}] [{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}] "
 
                         # Write immediately with a lock
                         with lock:
@@ -175,21 +175,25 @@ os.makedirs(output_dir, exist_ok=True)
 output_file = args.output if args.output else os.path.join(output_dir, f"result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
 
 
-if args.split:
-    split_wordlist(args.file_path, args.max_size)
-    exit(0)  # Exit after splitting
-else: # Direct search without splitting
-    # Determine if input is a single file or a directory
-    if os.path.isdir(args.file_path):
-        files = []
-        for root, _, filenames in os.walk(args.file_path):
-            for filename in filenames:
+# Determinar si el input es un solo archivo o un directorio
+if os.path.isdir(args.file_path):
+    files = []
+    for root, _, filenames in os.walk(args.file_path):
+        for filename in filenames:
+            if filename.lower().endswith(('.csv', '.txt')):  # Filtra solo .csv y .txt
                 file_path = os.path.join(root, filename)
                 files.append(file_path)
-    else:
-        files = [args.file_path]
-    
-    # Process files in parallel
-    with multiprocessing.Pool(args.workers) as pool:
-        pool.map(process_file, [(file, args.search_term, output_file, args.block_size, args.verbose) for file in files])
-    print(f"{Fore.BLUE}Results saved at: {output_file}{Style.RESET_ALL}")
+else:
+    files = [args.file_path] if args.file_path.lower().endswith(('.csv', '.txt')) else []
+
+# Si no hay archivos válidos, mostrar error y salir
+if not files:
+    print(f"{Fore.RED}Error: No hay archivos .csv o .txt para procesar en '{args.file_path}'{Style.RESET_ALL}")
+    exit(1)
+
+# Procesar archivos en paralelo
+with multiprocessing.Pool(args.workers) as pool:
+    pool.map(process_file, [(file, args.search_term, output_file, args.block_size, args.verbose) for file in files])
+
+print(f"{Fore.BLUE}Results saved at: {output_file}{Style.RESET_ALL}")
+
