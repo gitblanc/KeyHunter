@@ -7,24 +7,119 @@ from datetime import datetime
 from tqdm import tqdm
 import mmap
 import multiprocessing
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.colors import grey
+import re
 
 # Initialize colorama
 init(autoreset=True)
+
+# Version of the script
+VERSION = "1.4"
 
 # Global multiprocessing lock for safe writing
 lock = multiprocessing.Lock()
 
 def print_logo():
-    logo = r"""
+    logo = rf"""
  _  __          _   _             _            
 | |/ /___ _   _| | | |_   _ _ __ | |_ ___ _ __    
 | ' // _ | | | | |_| | | | | '_ \| __/ _ | '__| __
 | . |  __| |_| |  _  | |_| | | | | ||  __| |   /o \_____
 |_|\_\___|\__, |_| |_|\__,_|_| |_|\__\___|_|   \__/-="="
           |___/                                
-                                         @gitblanc, v1.4
+                                         @gitblanc, v{VERSION}
     """
     print(Fore.MAGENTA + logo + Style.RESET_ALL)
+
+def export_to_pdf(txt_file, pdf_file, search_term, logo_path=None):
+    """
+    Converts a text file to a formatted PDF, highlighting the search term in red.
+    """
+    c = canvas.Canvas(pdf_file, pagesize=letter)
+    width, height = letter
+    y_position = height - 50  # Start below header
+
+    # Add header
+    add_header(c, width, height)
+
+    c.setFont("Helvetica", 12)
+    c.setFillColor(colors.black)  # Ensure initial text color is black
+    
+    # Add the logo if provided
+    if logo_path and os.path.exists(logo_path):
+        logo = ImageReader(logo_path)
+        c.drawImage(logo, 50, height - 100, width=70, height=70, mask='auto')
+
+    # Add report title and date
+    c.drawString(50, height - 120, f"Search Report for \"{search_term}\"- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    c.line(50, height - 130, width - 50, height - 130)  # Add separator line
+
+    y_position = height - 150  # Adjust for content
+
+    c.setFont("Helvetica", 10)
+    
+    with open(txt_file, "r", encoding="utf-8") as f:
+        for line in f:
+            clean_line = remove_ansi_codes(line).strip()  # Remove ANSI codes
+
+            # If too low, start a new page
+            if y_position < 50:
+                c.showPage()
+                add_header(c, width, height)  # Add header on the new page
+                c.setFont("Helvetica", 10)
+                c.setFillColor(colors.black)  # Ensure initial text color is black
+                y_position = height - 50
+
+            # Highlight search term in red
+            if search_term in clean_line:
+                parts = clean_line.split(search_term)
+                x_position = 50
+                for i, part in enumerate(parts):
+                    c.drawString(x_position, y_position, part)
+                    x_position += c.stringWidth(part, "Helvetica", 10)
+                    
+                    if i < len(parts) - 1:
+                        c.setFillColor(colors.red)
+                        c.drawString(x_position, y_position, search_term)
+                        c.setFillColor(colors.black)
+                        x_position += c.stringWidth(search_term, "Helvetica", 10)
+            else:
+                c.drawString(50, y_position, clean_line)
+            
+            y_position -= 15  # Line spacing
+    
+    c.save()
+    print(f"{Fore.GREEN}PDF saved at: {pdf_file}{Style.RESET_ALL}")
+
+def add_header(c, width, height):
+    """
+    Adds the header text "KeyHunter vX.X by gitblanc" to the top-right corner of each page.
+    """
+    header_text = f"KeyHunter v{VERSION} by gitblanc"
+    c.setFont("Helvetica", 10)  # Fuente más pequeña
+    c.setFillColor(grey)  # Color gris
+    text_width = c.stringWidth(header_text, "Helvetica", 10)  # Obtener el ancho del texto
+    padding = 20  # Margen desde el borde derecho
+
+    # Dibujar el texto en la parte superior derecha
+    c.drawString(width - text_width - padding, height - 20, header_text)
+
+def remove_ansi_codes(text):
+    """
+    Removes ANSI escape codes from a given text.
+    
+    Args:
+        text (str): The input text containing ANSI codes.
+        
+    Returns:
+        str: Cleaned text without ANSI codes.
+    """
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
 
 def print_with_timestamp(message, color=Fore.RESET):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -56,24 +151,28 @@ def search_in_file(file_path, search_term, output_file, block_size=1024 * 1024, 
                     if search_term_bytes in line:
                         occurrences_count += 1
                         line_decoded = line.decode(errors='ignore')
+                        
+                        # Highlight search term in console
                         highlighted_line = line_decoded.replace(
-                                search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
-                            )
-                        occurrence_message = f"{highlighted_line}"
-                        occurrence_message_verbose = f"{highlighted_line} \n [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}] [{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}] "
+                            search_term, f"{Fore.RED}{search_term}{Style.RESET_ALL}"
+                        )
 
-                        # Write immediately with a lock
+                        # Console output with colors
+                        occurrence_message = f"{highlighted_line}"
+                        occurrence_message_verbose = f"{highlighted_line} \n [{Fore.YELLOW}Found at {file_path}{Style.RESET_ALL}] [{Fore.YELLOW}Line {line_number}{Style.RESET_ALL}]"
+
+                        # Save clean version to file
+                        clean_message = remove_ansi_codes(occurrence_message)
+                        clean_message_verbose = remove_ansi_codes(f"{highlighted_line} [Found at {file_path}] [Line {line_number}]\n")
+
                         with lock:
                             with open(output_file, 'a', encoding='utf-8') as out_f:
                                 if verbose:
-                                    out_f.write(f"{occurrence_message_verbose}\n")
+                                    out_f.write(f"{clean_message_verbose}\n")
                                 else:
-                                    out_f.write(f"{occurrence_message}\n")
+                                    out_f.write(f"{clean_message}\n")
 
-                        if verbose:
-                            tqdm.write(f"{occurrence_message_verbose}")
-                        else:
-                            tqdm.write(f"{occurrence_message}")
+                        tqdm.write(occurrence_message_verbose if verbose else occurrence_message)
 
                 pbar.update(chunk_size)
                 offset += chunk_size
@@ -160,6 +259,7 @@ parser.add_argument("-b", "--block_size", type=int, default=1024*1024, help="Rea
 parser.add_argument("--output", type=str, help="Specify output file name. Default: keyhunter_results/result_<date>.txt")
 parser.add_argument("-v", "--verbose", action="store_true", help="Verbose.")
 parser.add_argument("--workers", type=int, default=max(1, os.cpu_count() - 4), help="Number of parallel workers (default: CPU count - 4).")
+parser.add_argument("--pdf", action="store_true", help="Export results to a PDF file.")
 
 parser.add_argument("-s", "--split", action="store_true", help="Split a wordlist in multiple small parts.")
 parser.add_argument("--max_size", type=int, default=100, help="Max size per split file in MB (default: 100MB).") # Max size Github allows
@@ -196,4 +296,14 @@ with multiprocessing.Pool(args.workers) as pool:
     pool.map(process_file, [(file, args.search_term, output_file, args.block_size, args.verbose) for file in files])
 
 print(f"{Fore.BLUE}Results saved at: {output_file}{Style.RESET_ALL}")
+
+if args.pdf:
+    pdf_output_file = output_file.replace(".txt", ".pdf")
+
+    # Get the absolute path of the script directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Construct the absolute path for the logo
+    logo_path = os.path.join(script_dir, "img", "logo.png")
+    # Call the function using the dynamically resolved path
+    export_to_pdf(output_file, pdf_output_file, args.search_term, logo_path=logo_path)
 
