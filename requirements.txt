@@ -1,6 +1,5 @@
 colorama
 tqdm
-Pillow
-os
 argparse
 mmap
+reportlab
