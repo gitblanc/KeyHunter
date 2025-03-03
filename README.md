@@ -44,12 +44,12 @@ python3 keyhunter.py <path-to-file> <search-term> [options]
 ## 📜 Usage Examples
 - Search for passwords across multiple and different files (**_FASTER_**):
 
+>[!Note]
+>For this option you should separate the wordlist in multiple files using the `--split` functionality (or by yourself) and then pass the folder as path.
+
 ```shell
 python3 keyhunter.py /path/to/wordlist_parts/ password [-v] [--output /path/to/scan.txt]
 ```
-
->[!Note]
->For this option you should separate the wordlist in multiple files using the `--split` functionality (or by yourself) and then pass the folder as path.
 
 - Search for passwords in a file (**_SLOWER_**):
 
@@ -60,5 +60,11 @@ python3 keyhunter.py /path/to/wordlist.txt password [-v] [--output /path/to/scan
 - Split a file in multiple smaller ones (to split massive wordlists):
 
 ```bash
-python3 keyhunter.py --split [--max_size 50]
+python3 keyhunter.py /path/to/wordlist.txt --split [--max_size 50]
+```
+
+- Export results to pdf:
+
+```bash
+python3 keyhunter.py /path/to/wordlist.txt search_term --pdf
 ```
