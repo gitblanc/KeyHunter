@@ -1,5 +1,4 @@
 colorama
 tqdm
 argparse
-mmap
 reportlab
